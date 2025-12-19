@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Soil Moisture Sensor Layout Tool</title>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+<style>
+
+    @media (max-width: 900px) {
+    .controls-row {
+        flex-wrap: nowrap;        /* prevent stacking */
+        overflow-x: auto;         /* allow horizontal scroll */
+        scrollbar-width: thin; /* Firefox */
+    }
+
+    .panel {
+        flex: 0 0 320px;          /* fixed panel width */
+    }
+    }
+
+  body {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+  }
+
+  .page-container {
+    max-width: 1000px;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+
+  .panel {
+    border: 1px solid #ccc;
+    padding: 12px;
+    width: 320px;
+    height: 500px;
+  }
+
+  #sensorOptions {
+    column-count: 3;
+    font-size: 0.9em;
+  }
+
+  button {
+    margin-top: 8px;
+    padding: 6px 12px;
+  }
+
+  pre {
+    background: #f6f6f6;
+    padding: 10px;
+    border: 1px solid #ddd;
+  }
+</style>
+</head>
+
+<body>
+<div class="page-container">
+
+<h2>Soil Moisture Sensor Layout Explorer</h2>
+<p>
+    Interactive application to visualize the error and vertical distribution of soil moisture sensor layouts compared to in situ soil cores.
+</p>
+<div class="controls-row">
+  <div class="panel">
+    <label>Bottom of profile (cm):</label><br>
+    <input id="bottomDepth" type="number" value="50" step="5" min="5" max="100">
+
+    <h3>Select sensor depths (3–5)</h3>
+    <div id="sensorOptions"></div>
+
+    <button onclick="run()">Compute</button>
+  </div>
+
+  <div class="panel">
+    <h3>Profile navigation</h3>
+    <pre id="profileInfo"><h4>Profile info:</h4></pre>
+    <pre id="output"><h4>Metrics:</h4></pre>
+    <button onclick="prevProfile()">Previous profile</button>
+    <button onclick="nextProfile()">Next profile</button>
+  </div>
+
+  <div class="panel">
+    <div id="plot" style="height:500px;"></div>
+  </div>
+</div>
+
+<p>
+    Relative error is computed as follows: |Estimated - Observed| / Observed
+</p>
+<p>
+Reference: Krueger, E. S., Ashrafi, A., Patrignani, A., Wyatt, B. M., Fiebrich, C. A., Luttrell, C. M., Azizi, S. A., & Ochsner, T. E. (2026). Optimizing soil moisture sensor installation depths and number of sensors for in situ monitoring networks. Vadose Zone Journal.
+</p>
+<p>
+For comments and suggestions about this website contact: Erik Krueger (erik.kruger@okstate.edu) and Andres Patrignani (andrespatrignani@ksu.edu)
+</p>
+
+
+<script>
+/* ================= DATA LOADING ================= */
+
+let profiles = [];
+let profileIndex = 0;
+let results = [];
+
+fetch("profiles_insitu.json")
+  .then(r => r.json())
+  .then(data => {
+    profiles = data;
+    setupSensorOptions();
+    //run();
+  });
+
+/* ================= UI SETUP ================= */
+
+function setupSensorOptions() {
+  const c = document.getElementById("sensorOptions");
+  c.innerHTML = "";
+  for (let d = 5; d <= 100; d += 5) {
+    c.innerHTML += `
+      <label>
+        <input type="checkbox" value="${d}">
+        ${d} cm
+      </label><br>`;
+  }
+}
+
+/* ================= CORE LOGIC ================= */
+
+/* Linear interpolation at sensor depth */
+function vwcAtDepth(profile, depth) {
+  const nodes = profile.nodes;
+  const vwc = profile.vwc;
+
+  for (let i = 0; i < nodes.length - 1; i++) {
+    if (nodes[i] < depth && depth < nodes[i + 1]) {
+      const vwc_interp = 0.5 * (vwc[i] + vwc[i + 1]);
+      return vwc_interp;
+    }
+  }
+
+  throw new Error("Invalid sensor depth: " + depth);
+}
+
+
+/* Observed storage and mean VWC */
+function observedProfileStats(profile, bottom) {
+  let storage_cm = 0.0;
+  let depth_sum = 0.0;
+
+  for (let i = 0; i < profile.nodes.length; i++) {
+    if (profile.nodes[i] <= bottom) {
+      storage_cm += profile.vwc[i] * 5.0;  // 5-cm layers
+      depth_sum += 5.0;
+    }
+  }
+
+  const storage_mm = storage_cm * 10.0;
+  const mean_vwc = storage_cm / depth_sum;
+
+  return {
+    storage_mm: storage_mm,
+    mean_vwc: mean_vwc
+  };
+}
+
+
+/* Compute sensor layer thicknesses */
+function sensorWeights(depths, bottom) {
+  const z = depths.slice().sort((a, b) => a - b);
+  const weights = [];
+
+  let top = 0.0;
+
+  for (let i = 0; i < z.length; i++) {
+    let lower_bound = top;
+    let upper_bound;
+
+    if (i < z.length - 1) {
+      upper_bound = 0.5 * (z[i] + z[i + 1]);
+    } else {
+      upper_bound = bottom;
+    }
+
+    weights.push(upper_bound - lower_bound);
+    top = upper_bound;
+  }
+
+  return weights;
+}
+
+
+/* Estimated storage and mean VWC */
+function estimatedProfileStats(profile, depths, bottom) {
+  const weights = sensorWeights(depths, bottom);
+
+  let storage_cm = 0.0;
+
+  for (let i = 0; i < depths.length; i++) {
+    const depth = depths[i];
+    const vwc = vwcAtDepth(profile, depth);
+    storage_cm += vwc * weights[i];
+  }
+
+  const storage_mm = storage_cm * 10.0;
+  const mean_vwc = storage_cm / bottom;
+
+  return {
+    storage_mm: storage_mm,
+    mean_vwc: mean_vwc
+  };
+}
+
+
+/* ================= BATCH METRICS ================= */
+
+function computeAllProfiles(depths, bottom) {
+  results = [];
+
+  for (let i = 0; i < profiles.length; i++) {
+    const p = profiles[i];
+
+    const obs = observedProfileStats(p, bottom);
+    const est = estimatedProfileStats(p, depths, bottom);
+
+    const rel_error = Math.abs(est.storage_mm - obs.storage_mm) / obs.storage_mm;
+
+    results.push({
+      name: p.name,
+      obs_mean_vwc: obs.mean_vwc,
+      est_mean_vwc: est.mean_vwc,
+      obs_storage_mm: obs.storage_mm,
+      est_storage_mm: est.storage_mm,
+      rel_error: rel_error
+    });
+  }
+}
+
+
+function meanRelativeError(results) {
+  let sum = 0.0;
+  let count = 0;
+
+  for (let i = 0; i < results.length; i++) {
+    const val = results[i].rel_error;
+    if (Number.isFinite(val)) {
+      sum += val;
+      count += 1;
+    }
+  }
+
+  if (count === 0) {
+    return NaN;
+  }
+
+  return sum / count;
+}
+
+/* ================= PLOTTING ================= */
+
+function plotProfile(profile, depths, bottom) {
+
+  /* Observed profile */
+  let x_obs = [];
+  let y_obs = [];
+
+  for (let i = 0; i < profile.nodes.length; i++) {
+    if (profile.nodes[i] <= bottom) {
+      x_obs.push(profile.vwc[i]);
+      y_obs.push(profile.nodes[i]);
+    }
+  }
+
+  const obsTrace = {
+    x: x_obs,
+    y: y_obs,
+    mode: "lines+markers",
+    name: "Observed",
+    line: { color: "black" }
+  };
+
+  /* Estimated profile (piecewise constant) */
+  const z = depths.slice().sort((a, b) => a - b);
+  const w = sensorWeights(z, bottom);
+
+  let x_est = [];
+  let y_est = [];
+
+  let top = 0.0;
+
+  for (let i = 0; i < z.length; i++) {
+    const vwc = vwcAtDepth(profile, z[i]);
+    const bottom_layer = top + w[i];
+
+    x_est.push(vwc);
+    y_est.push(top);
+
+    x_est.push(vwc);
+    y_est.push(bottom_layer);
+
+    top = bottom_layer;
+  }
+
+  const estTrace = {
+    x: x_est,
+    y: y_est,
+    mode: "lines",
+    name: "Estimated",
+    line: { color: "red", dash: "dash" }
+  };
+
+  Plotly.newPlot("plot", [obsTrace, estTrace], {
+    xaxis: { title: "VWC (m³ m⁻³)", gridcolor: "#ddd" },
+    yaxis: {
+      title: "Depth (cm)",
+      autorange: "reversed",
+      range: [bottom, 0],
+      gridcolor: "#ddd"
+    },
+    legend: { x: 0.02, y: 0.98 },
+    margin: { l: 35, r: 5, t: 5, b: 40 }
+  });
+}
+
+
+/* ================= MAIN ================= */
+
+function run() {
+  const bottom = +document.getElementById("bottomDepth").value;
+
+  const depths = [...document.querySelectorAll("#sensorOptions input:checked")]
+    .map(c => +c.value)
+    .filter(d => d <= bottom);
+
+  if (depths.length < 3) {
+    alert("Select at least 3 sensor depths");
+    return;
+  }
+
+  /* Compute metrics for all profiles */
+  computeAllProfiles(depths, bottom);
+
+  const mre = meanRelativeError(results);
+
+  const p = profiles[profileIndex];
+  const r = results[profileIndex];
+
+  /* Profile metadata */
+  document.getElementById("profileInfo").textContent =
+    `Profile: ${p.group} ${p.core}
+Latitude: ${p.lat}
+Longitude: ${p.lon}
+Sampling date: ${p.date}
+Day of year: ${p.date}
+Land cover: ${p.land_cover}
+Soil series: ${p.soil_series}
+Soil texture: ${p.soil_texture}`;
+
+  /* Metrics output */
+  document.getElementById("output").textContent =
+    `Observed mean VWC:   ${r.obs_mean_vwc.toFixed(3)}
+Estimated mean VWC:  ${r.est_mean_vwc.toFixed(3)}
+
+Observed storage:    ${r.obs_storage_mm.toFixed(1)} mm
+Estimated storage:   ${r.est_storage_mm.toFixed(1)} mm
+
+Relative error (RE): ${(r.rel_error * 100).toFixed(2)} %
+Mean RE across ${profiles.length} profiles: ${(mre * 100).toFixed(2)} %`;
+
+  plotProfile(p, depths, bottom);
+}
+
+
+/* ================= NAVIGATION ================= */
+
+function nextProfile() {
+  profileIndex = (profileIndex + 1) % profiles.length;
+  run();
+}
+
+function prevProfile() {
+  profileIndex = (profileIndex - 1 + profiles.length) % profiles.length;
+  run();
+}
+</script>
+
+</div>
+</body>
+</html>
