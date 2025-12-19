@@ -238,7 +238,7 @@ function computeAllProfiles(depths, bottom) {
     const rel_error = Math.abs(est.storage_mm - obs.storage_mm) / obs.storage_mm;
 
     results.push({
-      name: p.name,
+      name: p.group + p.core,
       obs_mean_vwc: obs.mean_vwc,
       est_mean_vwc: est.mean_vwc,
       obs_storage_mm: obs.storage_mm,
