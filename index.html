@@ -98,10 +98,46 @@
 </div>
 
 <p>
+    This interactive web application compares observed soil water storage derived from in situ soil cores segmented at 5-cm intervals with estimated profile storage obtained from a user-defined soil moisture sensor layout. 
+    Observed storage is computed directly from volumetric water content measured for each 5-cm soil layer. 
+    Estimated storage is calculated by assigning the volumetric water content at each selected sensor depth to a specific layer of the soil profile, where the thickness of that layer is determined by the midpoints between adjacent sensors and the user-defined bottom of the profile. 
     Relative error is computed as follows: |Estimated - Observed| / Observed
 </p>
+<h3>Example 1: Reasonable sensor distribution (5, 20, 40 cm; 50-cm profile)</h3>
 <p>
-Reference: Krueger, E. S., Ashrafi, A., Patrignani, A., Wyatt, B. M., Fiebrich, C. A., Luttrell, C. M., Azizi, S. A., & Ochsner, T. E. (2026). Optimizing soil moisture sensor installation depths and number of sensors for in situ monitoring networks. Vadose Zone Journal.
+  Consider a profile depth of <strong>50 cm</strong> with sensors placed at <strong>5, 20, and 40 cm</strong>.
+</p>
+<p>The depth intervals represented by each sensor are defined as follows:</p>
+<ul>
+  <li><strong>5 cm sensor</strong> → represents soil from <strong>0 to 12.5 cm</strong></li>
+  <li><strong>20 cm sensor</strong> → represents soil from <strong>12.5 to 30 cm</strong></li>
+  <li><strong>40 cm sensor</strong> → represents soil from <strong>30 to 50 cm</strong></li>
+</ul>
+<p>
+  In this configuration, the deepest sensor (40 cm) captures the lower portion of the profile and the estimated profile reproduces both the vertical distribution of soil moisture and
+  total storage reasonably well across the entire 0–50 cm depth.
+</p>
+
+<h3>Example 2: Poor sensor distribution (5, 10, 20 cm; 50-cm profile)</h3>
+<p>
+  Now consider the same <strong>50-cm profile</strong>, but with sensors placed at <strong>5, 10, and 20 cm</strong>.
+</p>
+<p>The resulting depth intervals are:</p>
+<ul>
+  <li><strong>5 cm sensor</strong> → represents soil from <strong>0 to 7.5 cm</strong></li>
+  <li><strong>10 cm sensor</strong> → represents soil from <strong>7.5 to 15 cm</strong></li>
+  <li><strong>20 cm sensor</strong> → represents soil from <strong>15 to 50 cm</strong></li>
+</ul>
+<p>
+  In this case, the sensor at 20 cm is used to represent the entire <strong>15–50 cm</strong> portion of the profile. Because no sensor
+  is located below 20 cm, the estimated soil moisture below that depth is assumed to be uniform and equal to the value at 20 cm. This
+  typically leads to a poor representation of deeper soil moisture conditions.
+</p>
+
+
+<h3>Reference</h3>
+<p>
+Krueger, E. S., Ashrafi, A., Patrignani, A., Wyatt, B. M., Fiebrich, C. A., Luttrell, C. M., Azizi, S. A., & Ochsner, T. E. (2026). Optimizing soil moisture sensor installation depths and number of sensors for in situ monitoring networks. Vadose Zone Journal.
 </p>
 <p>
 For comments and suggestions about this website contact: Erik Krueger (erik.kruger@okstate.edu) and Andres Patrignani (andrespatrignani@ksu.edu)
@@ -270,18 +306,24 @@ function meanRelativeError(results) {
 
 /* ================= PLOTTING ================= */
 
+
 function plotProfile(profile, depths, bottom) {
 
   /* Observed profile */
   let x_obs = [];
   let y_obs = [];
-
   for (let i = 0; i < profile.nodes.length; i++) {
-    if (profile.nodes[i] <= bottom) {
-      x_obs.push(profile.vwc[i]);
-      y_obs.push(profile.nodes[i]);
+    const node = profile.nodes[i];
+
+    // Skip the 100–105 segment for plotting
+    if (node >= bottom) break;
+      const top = node - 2.5;
+      const bot = Math.min(node + 2.5, bottom);
+      const v = profile.vwc[i];
+
+      x_obs.push(v); y_obs.push(top);
+      x_obs.push(v); y_obs.push(bot);
     }
-  }
 
   const obsTrace = {
     x: x_obs,
@@ -329,7 +371,7 @@ function plotProfile(profile, depths, bottom) {
       range: [bottom, 0],
       gridcolor: "#ddd"
     },
-    legend: { x: 0.02, y: 0.98 },
+    legend: { x: 0.02, y: 1.05, orientation: "h"},
     margin: { l: 35, r: 5, t: 5, b: 40 }
   });
 }
