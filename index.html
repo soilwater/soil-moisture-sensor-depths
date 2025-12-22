@@ -78,7 +78,7 @@
     <label>Bottom of profile (cm):</label><br>
     <input id="bottomDepth" type="number" value="50" step="5" min="5" max="100">
 
-    <h3>Select sensor depths (>3)</h3>
+    <h3>Select sensor depths:</h3>
     <div id="sensorOptions"></div>
 
     <button onclick="run()">Compute</button>
@@ -277,6 +277,8 @@ function estimatedProfileStats(profile, depths, bottom) {
   const storage_mm = storage_cm * 10.0;
   const mean_vwc = storage_cm / bottom;
 
+  console.log(storage_mm)
+
   return {
     storage_mm: storage_mm,
     mean_vwc: mean_vwc
@@ -410,8 +412,8 @@ function run() {
     .map(c => +c.value)
     .filter(d => d <= bottom);
 
-  if (depths.length < 3) {
-    alert("Select at least 3 sensor depths");
+  if (depths.length < 1) {
+    alert("Select at least one sensor depth.");
     return;
   }
 
@@ -429,7 +431,6 @@ function run() {
 Latitude: ${p.lat}
 Longitude: ${p.lon}
 Sampling date: ${p.date}
-Day of year: ${p.date}
 Land cover: ${p.land_cover}
 Soil series: ${p.soil_series}
 Soil texture: ${p.soil_texture}`;
