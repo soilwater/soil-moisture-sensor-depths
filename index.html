@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <title>Soil Moisture Sensor Layout Tool</title>
 
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="plotly-2.27.0.min.js"></script>
+<!--  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>-->
 
 <style>
 
@@ -101,6 +102,11 @@
     <h3>Select sensor depths:</h3>
     <div id="sensorOptions"></div>
 
+    <label style="display:block; margin-top:10px;">
+      <input type="checkbox" id="showAccuracyBand">
+      <span style="font-size: small;">Show sensor accuracy (±0.03 cm³ cm⁻³)</span>
+    </label>
+
     <button onclick="run()">Compute</button>
     <p><span style="font-size: small; font-style: italic;">*Press "Compute" to update layout after adding or removing sensor depths.</span></p>
   </div>
@@ -124,7 +130,7 @@
 <p>
     Observed soil water storage is computed from volumetric water content measured in 1-m long in situ soil cores segmented in the field at 5-cm intervals. These measurements are linearly interpolated to a 1-cm vertical resolution for visualization purposes. In the figure, the 1-cm intervals are displayed using the midpoint of each segment (0.5, 1.5, 2.5, …, 98.5, 99.5 cm).
     Estimated storage is calculated by assigning the volumetric water content at each selected sensor depth to a specific layer of the soil profile, where the thickness of that layer is determined by the midpoints between adjacent sensors and the user-defined bottom of the profile. 
-    Each sensor value is obtained by averaging the observed volumetric water contents of the two adjacent 1-cm layers above and below the sensor depth (e.g., the volumetric water content of a sensor at 5 cm is calculated by averaging the observed values of the 4.5 cm and the 5.5 cm segments).
+    Each sensor value is obtained by averaging the observed volumetric water contents of the two adjacent 1-cm layers above and below the sensor depth (e.g., the volumetric water content of a sensor at 5 cm is calculated by averaging the observed values of the 4-5 cm and the 5-6 cm segments).
     Relative error is computed as follows: |Estimated - Observed| / Observed * 100
 </p>
 
@@ -420,39 +426,102 @@ function plotProfile(profile, depths, bottom) {
   };
 
   /* Sensor locations (markers) */
-let x_sensors = [];
-let y_sensors = [];
+  let x_sensors = [];
+  let y_sensors = [];
 
-for (let i = 0; i < z.length; i++) {
-  x_sensors.push(vwcAtDepth(profile, z[i]));
-  y_sensors.push(z[i]);
-}
-
-const sensorTrace = {
-  x: x_sensors,
-  y: y_sensors,
-  mode: "markers",
-  name: "Sensors",
-  marker: {
-    color: "red",
-    size: 8,
-    symbol: "circle-open",
-    line: { width: 2 }
+  for (let i = 0; i < z.length; i++) {
+    x_sensors.push(vwcAtDepth(profile, z[i]));
+    y_sensors.push(z[i]);
   }
-};
 
-  Plotly.newPlot("plot", [obsTrace, estTrace, sensorTrace], {
-    xaxis: { title: "VWC (cm³ cm⁻³)", gridcolor: "#ddd", range: [0.0, 0.5]},
+  const sensorTrace = {
+    x: x_sensors,
+    y: y_sensors,
+    mode: "markers",
+    name: "Sensors",
+    marker: {
+      color: "red",
+      size: 8,
+      symbol: "circle-open",
+      line: { width: 2 }
+    }
+  };
+
+
+  // --- Uncertainty band around estimated profile ---
+  const sigma = 0.03; // cm3/cm3 (absolute)
+
+  let x_upper = [];
+  let x_lower = [];
+  let y_band = [];
+
+  for (let i = 0; i < x_est.length; i++) {
+    x_upper.push(x_est[i] + sigma);
+    x_lower.push(x_est[i] - sigma);
+    y_band.push(y_est[i]);
+  }
+
+  // Lower bound trace (invisible line)
+  const estLowerTrace = {
+    x: x_lower,
+    y: y_band,
+    mode: "lines",
+    name: "Estimated ± 0.03 (lower)",
+    showlegend: false,
+    line: { width: 0 },
+    hoverinfo: "skip",
+    showlegend: false
+  };
+
+  // Upper bound trace filled down to the lower trace
+  const estUpperTrace = {
+    x: x_upper,
+    y: y_band,
+    mode: "lines",
+    name: "Sensor uncertainty (±0.03)",
+    showlegend: false,
+    fill: "tonextx",
+    line: { width: 0 },
+    hoverinfo: "skip",
+    // Pick a soft shade; if you prefer no explicit color choices, remove fillcolor
+    fillcolor: "rgba(255, 0, 0, 0.15)"
+  };
+
+  const showBand = document.getElementById("showAccuracyBand").checked;
+  const traces = [];
+
+  // Always show observed
+  traces.push(obsTrace);
+
+  // Optionally add uncertainty band (must come before estTrace)
+  if (showBand) {
+    traces.push(estLowerTrace);
+    traces.push(estUpperTrace);
+  }
+
+  // Always show estimated and sensors
+  traces.push(estTrace);
+  traces.push(sensorTrace);
+
+  Plotly.newPlot("plot", traces, {
+    xaxis: { 
+      title: { text: "VWC (cm³ cm⁻³)" },
+      gridcolor: "#ddd",
+      range: [0.0, 0.5],
+      automargin: true
+    },
     yaxis: {
-      title: "Depth (cm)",
+      title: { text: "Depth (cm)" },
       autorange: "reversed",
       range: [bottom, 0],
-      gridcolor: "#ddd"
+      gridcolor: "#ddd",
+      automargin: true
     },
     legend: { x: 0.02, y: 1.05, orientation: "h"},
     margin: { l: 35, r: 5, t: 5, b: 40 }
   });
 }
+
 
 
 /* ================= MAIN ================= */
