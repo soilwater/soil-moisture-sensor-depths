@@ -385,7 +385,7 @@ function plotProfile(profile, depths, bottom) {
     x: x_obs,
     y: y_obs,
     mode: "lines",
-    name: "Observed",
+    name: "Obs.",
     line: { color: "black", width: 3}
   };
 
@@ -415,11 +415,33 @@ function plotProfile(profile, depths, bottom) {
     x: x_est,
     y: y_est,
     mode: "lines",
-    name: "Estimated",
-    line: { color: "red", dash: "dash" }
+    name: "Est.",
+    line: { color: "red", dash: "dot", width: 2 }
   };
 
-  Plotly.newPlot("plot", [obsTrace, estTrace], {
+  /* Sensor locations (markers) */
+let x_sensors = [];
+let y_sensors = [];
+
+for (let i = 0; i < z.length; i++) {
+  x_sensors.push(vwcAtDepth(profile, z[i]));
+  y_sensors.push(z[i]);
+}
+
+const sensorTrace = {
+  x: x_sensors,
+  y: y_sensors,
+  mode: "markers",
+  name: "Sensors",
+  marker: {
+    color: "red",
+    size: 8,
+    symbol: "circle-open",
+    line: { width: 2 }
+  }
+};
+
+  Plotly.newPlot("plot", [obsTrace, estTrace, sensorTrace], {
     xaxis: { title: "VWC (cm³ cm⁻³)", gridcolor: "#ddd", range: [0.0, 0.5]},
     yaxis: {
       title: "Depth (cm)",
