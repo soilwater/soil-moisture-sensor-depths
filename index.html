@@ -87,7 +87,7 @@
       <option value="35">35</option>
       <option value="40">40</option>
       <option value="45">45</option>
-      <option value="50" selected>50</option>
+      <option value="50">50</option>
       <option value="55">55</option>
       <option value="60">60</option>
       <option value="65">65</option>
@@ -97,7 +97,7 @@
       <option value="85">85</option>
       <option value="90">90</option>
       <option value="95">95</option>
-      <option value="100">100</option>
+      <option value="100" selected>100</option>
     </select>
     <h3>Select sensor depths:</h3>
     <div id="sensorOptions"></div>
@@ -131,7 +131,10 @@
     Observed soil water storage is computed from volumetric water content measured in 1-m long in situ soil cores segmented in the field at 5-cm intervals. These measurements are linearly interpolated to a 1-cm vertical resolution for visualization purposes. In the figure, the 1-cm intervals are displayed using the midpoint of each segment (0.5, 1.5, 2.5, …, 98.5, 99.5 cm).
     Estimated storage is calculated by assigning the volumetric water content at each selected sensor depth to a specific layer of the soil profile, where the thickness of that layer is determined by the midpoints between adjacent sensors and the user-defined bottom of the profile. 
     Each sensor value is obtained by averaging the observed volumetric water contents of the two adjacent 1-cm layers above and below the sensor depth (e.g., the volumetric water content of a sensor at 5 cm is calculated by averaging the observed values of the 4-5 cm and the 5-6 cm segments).
-    Relative error is computed as follows: |Estimated - Observed| / Observed * 100
+    Relative error is computed using the profile storage as follows: |Estimated - Observed| / Observed * 100
+</p>
+<p>
+  Note that using midpoint-based layers produces the same total soil water storage as a linearly interpolated profile. Linear interpolation is therefore shown only to help visualize the estimated soil moisture distribution. Above the shallowest sensor and below the deepest sensor, soil moisture is assumed to be equal to the nearest sensor value rather than extrapolated.
 </p>
 
 </br>
@@ -365,6 +368,30 @@ function meanRelativeError(results) {
 }
 
 /* ================= PLOTTING ================= */
+function interpolatedVWC(profile, z, depth) {
+
+  // Above shallowest sensor: carry shallowest sensor value
+  if (depth <= z[0]) {
+    return vwcAtDepth(profile, z[0]);
+  }
+
+  // Below deepest sensor: carry deepest sensor value
+  if (depth >= z[z.length - 1]) {
+    return vwcAtDepth(profile, z[z.length - 1]);
+  }
+
+  // Between sensors: linear interpolation between sensor values
+  for (let i = 0; i < z.length - 1; i++) {
+    if (z[i] <= depth && depth <= z[i + 1]) {
+      const v1 = vwcAtDepth(profile, z[i]);
+      const v2 = vwcAtDepth(profile, z[i + 1]);
+      const frac = (depth - z[i]) / (z[i + 1] - z[i]);
+      return v1 + frac * (v2 - v1);
+    }
+  }
+
+  return NaN; // should never happen
+}
 
 
 function plotProfile(profile, depths, bottom) {
@@ -391,7 +418,7 @@ function plotProfile(profile, depths, bottom) {
     x: x_obs,
     y: y_obs,
     mode: "lines",
-    name: "Obs.",
+    name: "Observed",
     line: { color: "black", width: 3}
   };
 
@@ -421,7 +448,7 @@ function plotProfile(profile, depths, bottom) {
     x: x_est,
     y: y_est,
     mode: "lines",
-    name: "Est.",
+    name: "Layers",
     line: { color: "red", dash: "dot", width: 2 }
   };
 
@@ -438,7 +465,7 @@ function plotProfile(profile, depths, bottom) {
     x: x_sensors,
     y: y_sensors,
     mode: "markers",
-    name: "Sensors",
+    name: "Sensor",
     marker: {
       color: "red",
       size: 8,
@@ -448,17 +475,37 @@ function plotProfile(profile, depths, bottom) {
   };
 
 
-  // --- Uncertainty band around estimated profile ---
+  // Linearly interpolated profile
+  let x_interp = [];
+  let y_interp = [];
+
+  for (let d = 0; d <= bottom; d += 1) {
+    x_interp.push(interpolatedVWC(profile, z, d));
+    y_interp.push(d);
+  }
+
+  const interpTrace = {
+  x: x_interp,
+  y: y_interp,
+  mode: "lines",
+  name: "Interp.",
+  line: {
+      color: "red",
+      width: 2
+    }
+  };
+
+  // --- Uncertainty band around interpolated profile ---
   const sigma = 0.03; // cm3/cm3 (absolute)
 
   let x_upper = [];
   let x_lower = [];
   let y_band = [];
 
-  for (let i = 0; i < x_est.length; i++) {
-    x_upper.push(x_est[i] + sigma);
-    x_lower.push(x_est[i] - sigma);
-    y_band.push(y_est[i]);
+  for (let i = 0; i < x_interp.length; i++) {
+    x_upper.push(x_interp[i] + sigma);
+    x_lower.push(x_interp[i] - sigma);
+    y_band.push(y_interp[i]);
   }
 
   // Lower bound trace (invisible line)
@@ -470,7 +517,6 @@ function plotProfile(profile, depths, bottom) {
     showlegend: false,
     line: { width: 0 },
     hoverinfo: "skip",
-    showlegend: false
   };
 
   // Upper bound trace filled down to the lower trace
@@ -478,7 +524,7 @@ function plotProfile(profile, depths, bottom) {
     x: x_upper,
     y: y_band,
     mode: "lines",
-    name: "Sensor uncertainty (±0.03)",
+    name: "Uncertainty",
     showlegend: false,
     fill: "tonextx",
     line: { width: 0 },
@@ -486,6 +532,8 @@ function plotProfile(profile, depths, bottom) {
     // Pick a soft shade; if you prefer no explicit color choices, remove fillcolor
     fillcolor: "rgba(255, 0, 0, 0.15)"
   };
+
+
 
   const showBand = document.getElementById("showAccuracyBand").checked;
   const traces = [];
@@ -501,8 +549,14 @@ function plotProfile(profile, depths, bottom) {
 
   // Always show estimated and sensors
   traces.push(estTrace);
+  traces.push(interpTrace);
   traces.push(sensorTrace);
 
+
+
+ 
+
+  // Plot
   Plotly.newPlot("plot", traces, {
     xaxis: { 
       title: { text: "VWC (cm³ cm⁻³)" },
@@ -517,8 +571,8 @@ function plotProfile(profile, depths, bottom) {
       gridcolor: "#ddd",
       automargin: true
     },
-    legend: { x: 0.02, y: 1.05, orientation: "h"},
-    margin: { l: 35, r: 5, t: 5, b: 40 }
+    legend: { x: 0.02, y: 1.08, orientation: "h"},
+    margin: { l: 35, r: 5, t: 65, b: 40 }
   });
 }
 
