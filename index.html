@@ -2,67 +2,226 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Soil Moisture Sensor Layout Tool</title>
 
 <script src="plotly-2.27.0.min.js"></script>
 <!--  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>-->
 
 <style>
+  :root {
+    color-scheme: dark;
+    --bg:          #121211;
+    --surface:     #1a1a19;
+    --surface-2:   #232321;
+    --border:      #33332f;
+    --text:        #f2f1ec;
+    --text-2:      #c3c2b7;
+    --muted:       #8d8c84;
+    --grid:        #2c2c29;
+    --observed:    #e8e6df;
+    --estimated:   #e8743f;
+    --estimated-a: rgba(232, 116, 63, 0.16);
+    --radius:      10px;
+  }
 
-    @media (max-width: 900px) {
-    .controls-row {
-        flex-wrap: nowrap;        /* prevent stacking */
-        overflow-x: auto;         /* allow horizontal scroll */
-        scrollbar-width: thin; /* Firefox */
-    }
-
-    .panel {
-        flex: 0 0 320px;          /* fixed panel width */
-    }
-    }
+  * { box-sizing: border-box; }
 
   body {
-    display: flex;
-    justify-content: center;
     margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.55;
   }
 
   .page-container {
-    max-width: 1000px;
-    width: 100%;
-    padding: 20px;
-    box-sizing: border-box;
-    font-family: Arial, sans-serif;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 28px 20px 48px;
   }
 
+  h1 { font-size: 1.6rem; margin: 0 0 6px; font-weight: 650; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; margin: 40px 0 10px; font-weight: 600; }
+  h3 { font-size: 1rem; margin: 28px 0 8px; font-weight: 600; }
+  p, li { color: var(--text-2); }
+  strong { color: var(--text); }
+  a { color: var(--estimated); }
+  .lede { margin: 0 0 24px; max-width: 75ch; }
+
+  /* ---------- Main tool layout ---------- */
   .controls-row {
-    display: flex;
-    gap: 30px;
-    margin-bottom: 20px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 250px 290px minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  @media (max-width: 960px) {
+    .controls-row { grid-template-columns: 1fr 1fr; }
+    .panel.plot-panel { grid-column: 1 / -1; }
+  }
+  @media (max-width: 620px) {
+    .controls-row { grid-template-columns: 1fr; }
   }
 
   .panel {
-    border: 1px solid #ccc;
-    padding: 12px;
-    width: 350px;
-    height: 500px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    min-width: 0;
   }
 
-  #sensorOptions {
-    column-count: 3;
-    font-size: 0.9em;
+  .panel-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 8px;
+    font-weight: 600;
   }
+  .panel-title + * { margin-top: 0; }
+  .section-gap { margin-top: 18px; }
+
+  label { color: var(--text-2); font-size: 0.9rem; }
+
+  select {
+    width: 100%;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font: inherit;
+    font-size: 0.9rem;
+  }
+
+  /* Sensor depth chips (checkboxes styled as toggles) */
+  #sensorOptions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  #sensorOptions label { display: block; margin: 0; }
+  #sensorOptions input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #sensorOptions span {
+    display: block;
+    text-align: center;
+    padding: 5px 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  #sensorOptions span:hover { border-color: var(--muted); }
+  #sensorOptions input:checked + span {
+    background: var(--estimated);
+    border-color: var(--estimated);
+    color: #1a1a19;
+    font-weight: 600;
+  }
+  #sensorOptions input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+  #sensorOptions input:disabled + span { opacity: 0.3; cursor: not-allowed; }
+
+  .chip-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .toggle input { accent-color: var(--estimated); width: 16px; height: 16px; margin: 0; }
 
   button {
-    margin-top: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     padding: 6px 12px;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
   }
+  button:hover { border-color: var(--muted); }
+  button.small { padding: 3px 10px; font-size: 0.78rem; color: var(--text-2); }
 
-  pre {
-    background: #f6f6f6;
-    padding: 10px;
-    border: 1px solid #ddd;
+  .nav-row { display: flex; gap: 6px; }
+  .nav-row select { flex: 1; min-width: 0; }
+  .nav-row button { flex: 0 0 auto; padding: 6px 10px; }
+
+  /* Key-value lists */
+  dl.kv {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 12px;
+    margin: 0;
+    font-size: 0.84rem;
+  }
+  dl.kv dt { color: var(--muted); }
+  dl.kv dd { margin: 0; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+  /* Headline metrics */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .stat .label { font-size: 0.72rem; color: var(--muted); line-height: 1.3; }
+  .stat .value { font-size: 1.5rem; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 4px; }
+  .stat .value small { font-size: 0.8rem; font-weight: 500; color: var(--text-2); margin-left: 2px; }
+
+  .plot-panel { padding: 8px; display: flex; flex-direction: column; }
+  #plot { width: 100%; height: 540px; }
+  .empty {
+    display: none;
+    height: 540px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--muted);
+    padding: 20px;
+  }
+  .plot-panel.is-empty #plot { display: none; }
+  .plot-panel.is-empty .empty { display: flex; }
+
+  .hint { font-size: 0.78rem; color: var(--muted); margin: 10px 0 0; }
+
+  /* ---------- Documentation ---------- */
+  .docs { max-width: 80ch; }
+  .docs ul { padding-left: 20px; }
+  code.eq {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--text);
+    font-size: 0.9em;
+  }
+  .collab {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
   }
 </style>
 </head>
@@ -70,78 +229,95 @@
 <body>
 <div class="page-container">
 
-<h2>Soil Moisture Sensor Layout Explorer</h2>
-<p>
-    Interactive application to visualize the error and vertical distribution of soil moisture sensor layouts compared to in situ soil cores.
+<h1>Soil Moisture Sensor Layout Explorer</h1>
+<p class="lede">
+  Interactive application to visualize the error and vertical distribution of soil moisture sensor layouts compared to in situ soil cores.
 </p>
+
 <div class="controls-row">
+  <!-- Layout controls -->
   <div class="panel">
-    <label>Bottom of profile (cm):</label><br>
-    <select id="bottomDepth">
-      <option value="5">5</option>
-      <option value="10">10</option>
-      <option value="15">15</option>
-      <option value="20">20</option>
-      <option value="25">25</option>
-      <option value="30">30</option>
-      <option value="35">35</option>
-      <option value="40">40</option>
-      <option value="45">45</option>
-      <option value="50">50</option>
-      <option value="55">55</option>
-      <option value="60">60</option>
-      <option value="65">65</option>
-      <option value="70">70</option>
-      <option value="75">75</option>
-      <option value="80">80</option>
-      <option value="85">85</option>
-      <option value="90">90</option>
-      <option value="95">95</option>
-      <option value="100" selected>100</option>
-    </select>
-    <h3>Select sensor depths:</h3>
+    <p class="panel-title">Profile depth</p>
+    <label for="bottomDepth">Bottom of profile (cm)</label>
+    <select id="bottomDepth"></select>
+
+    <p class="panel-title section-gap">Sensor depths (cm)</p>
     <div id="sensorOptions"></div>
+    <div class="chip-actions">
+      <button class="small" type="button" onclick="clearSensors()">Clear</button>
+    </div>
 
-    <label style="display:block; margin-top:10px;">
+    <label class="toggle">
       <input type="checkbox" id="showAccuracyBand">
-      <span style="font-size: small;">Show sensor accuracy (±0.03 cm³ cm⁻³)</span>
+      Accuracy (±0.03 cm³ cm⁻³)
     </label>
-
-    <button onclick="run()">Compute</button>
-    <p><span style="font-size: small; font-style: italic;">*Press "Compute" to update layout after adding or removing sensor depths.</span></p>
   </div>
 
+  <!-- Profile + metrics -->
   <div class="panel">
-    <h3>Profile navigation</h3>
-    <h5 style="margin-bottom: 0px;">Profile info:</h5>
-    <pre id="profileInfo"></pre>
+    <p class="panel-title">Profile</p>
+    <div class="nav-row">
+      <button type="button" onclick="prevProfile()" aria-label="Previous profile">&#8249;</button>
+      <select id="profileSelect" aria-label="Select profile"></select>
+      <button type="button" onclick="nextProfile()" aria-label="Next profile">&#8250;</button>
+    </div>
+    <dl class="kv section-gap" id="profileInfo"></dl>
 
-    <h5 style="margin-bottom: 0px;">Metrics:</h5>
-    <pre id="output"></pre>
-    <button onclick="prevProfile()">Previous profile</button>
-    <button onclick="nextProfile()">Next profile</button>
+    <p class="panel-title section-gap">Metrics</p>
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Relative error<br>(this profile)</div>
+        <div class="value" id="reValue">–</div>
+      </div>
+      <div class="stat">
+        <div class="label">Signed error<br>(this profile)</div>
+        <div class="value" id="seValue">–</div>
+      </div>
+      <div class="stat">
+        <div class="label">Mean relative error<br>(<span class="nProfiles">all</span> profiles)</div>
+        <div class="value" id="mreValue">–</div>
+      </div>
+      <div class="stat">
+        <div class="label">Mean signed error<br>(<span class="nProfiles">all</span> profiles)</div>
+        <div class="value" id="mseValue">–</div>
+      </div>
+    </div>
+    <dl class="kv" id="output"></dl>
   </div>
 
-  <div class="panel">
-    <div id="plot" style="height:500px;"></div>
+  <!-- Plot -->
+  <div class="panel plot-panel is-empty" id="plotPanel">
+    <div id="plot"></div>
+    <div class="empty">Select at least one sensor depth to see the estimated profile.</div>
   </div>
 </div>
 
+<div class="docs">
+<h2>Reading the chart</h2>
 <p>
-    Observed soil water storage is computed from volumetric water content measured in 1-m long in situ soil cores segmented in the field at 5-cm intervals. These measurements are linearly interpolated to a 1-cm vertical resolution for visualization purposes. In the figure, the 1-cm intervals are displayed using the midpoint of each segment (0.5, 1.5, 2.5, …, 98.5, 99.5 cm).
-    Estimated storage is calculated by assigning the volumetric water content at each selected sensor depth to a specific layer of the soil profile, where the thickness of that layer is determined by the midpoints between adjacent sensors and the user-defined bottom of the profile. 
-    Each sensor value is obtained by averaging the observed volumetric water contents of the two adjacent 1-cm layers above and below the sensor depth (e.g., the volumetric water content of a sensor at 5 cm is calculated by averaging the observed values of the 4-5 cm and the 5-6 cm segments).
-    Relative error is computed using the profile storage as follows: |Estimated - Observed| / Observed * 100
+  Each reference profile comes from a 1-m soil core cut into 5-cm segments in the field. The tool simulates perfect sensor
+  readings at the selected depths and compares the soil moisture profile estimated from those few sensors against the full core.
 </p>
-<p>
-  Note that using midpoint-based layers produces the same total soil water storage as a linearly interpolated profile. Linear interpolation is therefore shown only to help visualize the estimated soil moisture distribution. Above the shallowest sensor and below the deepest sensor, soil moisture is assumed to be equal to the nearest sensor value rather than extrapolated.
-</p>
+<ul>
+  <li><strong>Observed</strong> (white line): volumetric water content (VWC) measured in the soil core, interpolated to 1-cm layers and plotted at the middle of each layer (0.5, 1.5, …, 99.5 cm).</li>
+  <li><strong>Sensor</strong> (circles): the simulated sensor readings. Each one is the average of the observed 1-cm layers just above and below the sensor depth (e.g., a 5-cm sensor averages the 4–5 cm and 5–6 cm layers).</li>
+  <li><strong>Layers</strong> (dotted line): each sensor represents the soil from halfway to the sensor above to halfway to the sensor below. The shallowest sensor extends to the surface and the deepest sensor extends to the bottom of the profile. Estimated storage is the sum of each sensor reading multiplied by the thickness of its layer.</li>
+  <li><strong>Interp.</strong> (solid orange line): straight lines connecting the sensor readings, shown to help visualize the estimated profile. Above the shallowest and below the deepest sensor, VWC is held at the nearest sensor reading. This line contains exactly the same total storage as the Layers line.</li>
+  <li><strong>±0.03</strong> (shaded band, optional): typical sensor accuracy of ±0.03 cm³ cm⁻³ around the interpolated profile.</li>
+</ul>
 
-</br>
+<h3>Error metrics</h3>
+<p>All metrics compare total water storage (mm) in the profile from the surface down to the selected bottom depth.</p>
+<ul>
+  <li><strong>Relative error</strong>: size of the error for the selected profile, <code class="eq">|Estimated − Observed| / Observed × 100</code>. <em>Lower is better.</em></li>
+  <li><strong>Signed error</strong>: same, but keeps the sign, <code class="eq">(Estimated − Observed) / Observed × 100</code>. Positive values mean the sensors overestimate storage and negative values mean they underestimate it. <em>Closer to zero is better.</em></li>
+  <li><strong>Mean relative error</strong> and <strong>mean signed error</strong>: the same metrics averaged across all profiles. The mean relative error describes the typical size of the error of a layout; the mean signed error reveals whether a layout consistently over- or underestimates storage.</li>
+</ul>
 
-<h3>Example 1: Reasonable sensor distribution (5, 20, 40 cm; 50-cm profile)</h3>
+<h3>Example 1: Reasonable sensor distribution</h3>
 <p>
   Consider a profile depth of <strong>50 cm</strong> with sensors placed at <strong>5, 20, and 40 cm</strong>.
+  <button class="small" type="button" onclick="applyLayout(50, [5, 20, 40])">Try it</button>
 </p>
 <p>The depth intervals represented by each sensor are defined as follows:</p>
 <ul>
@@ -150,15 +326,14 @@
   <li><strong>40 cm sensor</strong> → represents soil from <strong>30 to 50 cm</strong></li>
 </ul>
 <p>
-  In this configuration, the deepest sensor (40 cm) captures the lower portion of the profile and the estimated profile reproduces both the vertical distribution of soil moisture and
+  In this configuration, 12.5 cm and 30 cm are the midpoints between the sensor locations. The deepest sensor (40 cm) captures the lower portion of the profile and the estimated profile reproduces both the vertical distribution of soil moisture and
   total storage reasonably well across the entire 0–50 cm depth.
 </p>
 
-</br>
-
-<h3>Example 2: Poor sensor distribution (5, 10, 20 cm; 50-cm profile)</h3>
+<h3>Example 2: Poor sensor distribution</h3>
 <p>
   Now consider the same <strong>50-cm profile</strong>, but with sensors placed at <strong>5, 10, and 20 cm</strong>.
+  <button class="small" type="button" onclick="applyLayout(50, [5, 10, 20])">Try it</button>
 </p>
 <p>The resulting depth intervals are:</p>
 <ul>
@@ -171,20 +346,53 @@
   is located below 20 cm, the estimated soil moisture below that depth is assumed to be uniform and equal to the value at 20 cm. This
   typically leads to a poor representation of deeper soil moisture conditions.
 </p>
+</div>
 
-</br>
-</br>
-
-<h3>Reference</h3>
+<footer>
+<h3 style="margin-top:0;">Reference</h3>
 <p>
-Krueger, E. S., Ashrafi, A., Patrignani, A., Wyatt, B. M., Fiebrich, C. A., Luttrell, C. M., Azizi, S. A., & Ochsner, T. E. (2026). Optimizing soil moisture sensor installation depths and number of sensors for in situ monitoring networks. Vadose Zone Journal.
+Krueger, E. S., Ashrafi, A., Patrignani, A., Wyatt, B. M., Fiebrich, C. A., Luttrell, C. M., Azizi, S. A., & Ochsner, T. E. (2026). Optimizing soil moisture sensor installation depths and number of sensors for in situ monitoring networks. <em>Vadose Zone Journal, 25</em>(3), e70100. <a href="https://doi.org/10.1002/vzj2.70100" target="_blank" rel="noopener">https://doi.org/10.1002/vzj2.70100</a>
 </p>
 <p>
-For comments and suggestions about this website contact: Erik Krueger (erik.kruger@okstate.edu) and Andres Patrignani (andrespatrignani@ksu.edu)
+For comments and suggestions about this website contact: Erik Krueger (<a href="mailto:erik.krueger@okstate.edu">erik.krueger@okstate.edu</a>) and Andres Patrignani (<a href="mailto:andrespatrignani@ksu.edu">andrespatrignani@ksu.edu</a>)
 </p>
+<p class="collab">
+This tool is the result of a collaboration between
+<a href="https://okstate.edu" target="_blank" rel="noopener">Oklahoma State University</a>,
+<a href="https://www.k-state.edu" target="_blank" rel="noopener">Kansas State University</a>,
+<a href="https://www.tamu.edu" target="_blank" rel="noopener">Texas A&amp;M University</a>, and the
+<a href="https://www.mesonet.org" target="_blank" rel="noopener">Oklahoma Mesonet</a>.
+</p>
+</footer>
 
 
 <script>
+/* ================= CONSTANTS ================= */
+
+const DEPTH_STEP = 5;          // cm, spacing of selectable depths
+const MAX_DEPTH = 100;         // cm
+const DEFAULT_BOTTOM = 100;    // cm
+const DEFAULT_SENSORS = [5, 10, 20, 50, 100];
+const SENSOR_ACCURACY = 0.03;  // cm3/cm3 (absolute)
+
+// Display names for the data groups in profiles_insitu.json
+const GROUP_LABELS = { "OSU": "Oklahoma", "KSU": "Kansas", "Texas A&M": "Texas" };
+
+const css = getComputedStyle(document.documentElement);
+const COLORS = {
+  text:       css.getPropertyValue("--text").trim(),
+  text2:      css.getPropertyValue("--text-2").trim(),
+  muted:      css.getPropertyValue("--muted").trim(),
+  grid:       css.getPropertyValue("--grid").trim(),
+  border:     css.getPropertyValue("--border").trim(),
+  surface:    css.getPropertyValue("--surface").trim(),
+  surface2:   css.getPropertyValue("--surface-2").trim(),
+  observed:   css.getPropertyValue("--observed").trim(),
+  estimated:  css.getPropertyValue("--estimated").trim(),
+  estimatedA: css.getPropertyValue("--estimated-a").trim()
+};
+
+
 /* ================= DATA LOADING ================= */
 
 let profiles = [];
@@ -195,24 +403,54 @@ fetch("profiles_insitu.json")
   .then(r => r.json())
   .then(data => {
     profiles = data;
-    setupSensorOptions();
-    updateSensorDepthAvailability();
-    //run();
+    document.querySelectorAll(".nProfiles").forEach(el => el.textContent = profiles.length);
+    setupProfileSelect();
+    run();
+  })
+  .catch(err => {
+    document.querySelector("#plotPanel .empty").textContent =
+      "Could not load profiles_insitu.json (" + err.message + "). " +
+      "If you opened this file directly from disk, serve the folder with a local web server instead.";
   });
 
 
 /* ================= UI SETUP ================= */
 
+function setupBottomDepthOptions() {
+  const s = document.getElementById("bottomDepth");
+  for (let d = DEPTH_STEP; d <= MAX_DEPTH; d += DEPTH_STEP) {
+    const o = document.createElement("option");
+    o.value = d;
+    o.textContent = d;
+    if (d === DEFAULT_BOTTOM) o.selected = true;
+    s.appendChild(o);
+  }
+}
+
 function setupSensorOptions() {
   const c = document.getElementById("sensorOptions");
   c.innerHTML = "";
-  for (let d = 5; d <= 100; d += 5) {
-    c.innerHTML += `
-      <label>
-        <input type="checkbox" value="${d}">
-        ${d} cm
-      </label><br>`;
+  for (let d = DEPTH_STEP; d <= MAX_DEPTH; d += DEPTH_STEP) {
+    const checked = DEFAULT_SENSORS.includes(d) ? "checked" : "";
+    c.insertAdjacentHTML("beforeend", `
+      <label><input type="checkbox" value="${d}" ${checked}><span>${d}</span></label>`);
   }
+}
+
+function profileLabel(p) {
+  return `${GROUP_LABELS[p.group] || p.group} ${p.core}`;
+}
+
+function setupProfileSelect() {
+  const s = document.getElementById("profileSelect");
+  s.innerHTML = "";
+  profiles.forEach((p, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = profileLabel(p);
+    s.appendChild(o);
+  });
+  s.value = profileIndex;
 }
 
 function updateSensorDepthAvailability() {
@@ -234,9 +472,24 @@ function updateSensorDepthAvailability() {
   }
 }
 
+function clearSensors() {
+  document.querySelectorAll("#sensorOptions input").forEach(b => b.checked = false);
+  run();
+}
+
+function applyLayout(bottom, depths) {
+  document.getElementById("bottomDepth").value = bottom;
+  updateSensorDepthAvailability();
+  document.querySelectorAll("#sensorOptions input").forEach(b => {
+    b.checked = depths.includes(+b.value);
+  });
+  run();
+  document.querySelector(".controls-row").scrollIntoView({ behavior: "smooth" });
+}
+
 /* ================= CORE LOGIC ================= */
 
-/* Linear interpolation at sensor depth */
+/* Sensor reading: mean of the two 1-cm layers adjacent to the sensor depth */
 function vwcAtDepth(profile, depth) {
   const nodes = profile.nodes;
   const vwc = profile.vwc;
@@ -274,7 +527,7 @@ function observedProfileStats(profile, bottom) {
 }
 
 
-/* Compute sensor layer thicknesses */
+/* Compute sensor layer thicknesses (depths must be sorted ascending) */
 function sensorWeights(depths, bottom) {
   const z = depths.slice().sort((a, b) => a - b);
   const weights = [];
@@ -301,20 +554,19 @@ function sensorWeights(depths, bottom) {
 
 /* Estimated storage and mean VWC */
 function estimatedProfileStats(profile, depths, bottom) {
-  const weights = sensorWeights(depths, bottom);
+  // Sort so each sensor value is paired with its own layer thickness
+  const z = depths.slice().sort((a, b) => a - b);
+  const weights = sensorWeights(z, bottom);
 
   let storage_cm = 0.0;
 
-  for (let i = 0; i < depths.length; i++) {
-    const depth = depths[i];
-    const vwc = vwcAtDepth(profile, depth);
+  for (let i = 0; i < z.length; i++) {
+    const vwc = vwcAtDepth(profile, z[i]);
     storage_cm += vwc * weights[i];
   }
 
   const storage_mm = storage_cm * 10.0;
   const mean_vwc = storage_cm / bottom;
-
-  //console.log(storage_mm)
 
   return {
     storage_mm: storage_mm,
@@ -334,26 +586,29 @@ function computeAllProfiles(depths, bottom) {
     const obs = observedProfileStats(p, bottom);
     const est = estimatedProfileStats(p, depths, bottom);
 
-    const rel_error = Math.abs(est.storage_mm - obs.storage_mm) / obs.storage_mm;
+    const signed_error = (est.storage_mm - obs.storage_mm) / obs.storage_mm;
+    const rel_error = Math.abs(signed_error);
 
     results.push({
-      name: p.group + p.core,
+      name: profileLabel(p),
       obs_mean_vwc: obs.mean_vwc,
       est_mean_vwc: est.mean_vwc,
       obs_storage_mm: obs.storage_mm,
       est_storage_mm: est.storage_mm,
-      rel_error: rel_error
+      rel_error: rel_error,
+      signed_error: signed_error
     });
   }
 }
 
 
-function meanRelativeError(results) {
+/* Mean of a result field (e.g. "rel_error" or "signed_error") across profiles */
+function meanOfResults(results, key) {
   let sum = 0.0;
   let count = 0;
 
   for (let i = 0; i < results.length; i++) {
-    const val = results[i].rel_error;
+    const val = results[i][key];
     if (Number.isFinite(val)) {
       sum += val;
       count += 1;
@@ -402,24 +657,21 @@ function plotProfile(profile, depths, bottom) {
   for (let i = 0; i < profile.nodes.length; i++) {
     const node = profile.nodes[i];
 
-    // Skip the 100–105 segment for plotting
+    // Only plot nodes inside the selected profile (skips the 100–101 node)
     if (node >= bottom) break;
-      x_obs.push(profile.vwc[i]);
-      y_obs.push(profile.nodes[i]);
-      //const top = node - 0.5;
-      //const bot = Math.min(node + 0.5, bottom);
-      //const v = profile.vwc[i];
+    x_obs.push(profile.vwc[i]);
+    y_obs.push(node);
+  }
 
-      //x_obs.push(v); y_obs.push(top);
-      //x_obs.push(v); y_obs.push(bot);
-    }
+  const hoverVWC = "%{x:.3f} cm³ cm⁻³ at %{y} cm";
 
   const obsTrace = {
     x: x_obs,
     y: y_obs,
     mode: "lines",
     name: "Observed",
-    line: { color: "black", width: 3}
+    line: { color: COLORS.observed, width: 2.5 },
+    hovertemplate: hoverVWC
   };
 
   /* Estimated profile (piecewise constant) */
@@ -449,7 +701,8 @@ function plotProfile(profile, depths, bottom) {
     y: y_est,
     mode: "lines",
     name: "Layers",
-    line: { color: "red", dash: "dot", width: 2 }
+    line: { color: COLORS.estimated, dash: "dot", width: 2 },
+    hoverinfo: "skip"
   };
 
   /* Sensor locations (markers) */
@@ -467,11 +720,12 @@ function plotProfile(profile, depths, bottom) {
     mode: "markers",
     name: "Sensor",
     marker: {
-      color: "red",
-      size: 8,
-      symbol: "circle-open",
-      line: { width: 2 }
-    }
+      color: COLORS.surface,
+      size: 10,
+      symbol: "circle",
+      line: { width: 2, color: COLORS.estimated }
+    },
+    hovertemplate: "Sensor %{y} cm: %{x:.3f} cm³ cm⁻³<extra></extra>"
   };
 
 
@@ -485,151 +739,190 @@ function plotProfile(profile, depths, bottom) {
   }
 
   const interpTrace = {
-  x: x_interp,
-  y: y_interp,
-  mode: "lines",
-  name: "Interp.",
-  line: {
-      color: "red",
-      width: 2
-    }
+    x: x_interp,
+    y: y_interp,
+    mode: "lines",
+    name: "Interp.",
+    line: { color: COLORS.estimated, width: 2 },
+    hovertemplate: hoverVWC
   };
 
   // --- Uncertainty band around interpolated profile ---
-  const sigma = 0.03; // cm3/cm3 (absolute)
-
-  let x_upper = [];
-  let x_lower = [];
-  let y_band = [];
-
-  for (let i = 0; i < x_interp.length; i++) {
-    x_upper.push(x_interp[i] + sigma);
-    x_lower.push(x_interp[i] - sigma);
-    y_band.push(y_interp[i]);
-  }
+  const x_upper = x_interp.map(v => v + SENSOR_ACCURACY);
+  const x_lower = x_interp.map(v => v - SENSOR_ACCURACY);
 
   // Lower bound trace (invisible line)
   const estLowerTrace = {
     x: x_lower,
-    y: y_band,
+    y: y_interp,
     mode: "lines",
-    name: "Estimated ± 0.03 (lower)",
     showlegend: false,
     line: { width: 0 },
-    hoverinfo: "skip",
+    hoverinfo: "skip"
   };
 
   // Upper bound trace filled down to the lower trace
   const estUpperTrace = {
     x: x_upper,
-    y: y_band,
+    y: y_interp,
     mode: "lines",
-    name: "Uncertainty",
-    showlegend: false,
+    name: "±0.03",
+    showlegend: true,
     fill: "tonextx",
     line: { width: 0 },
     hoverinfo: "skip",
-    // Pick a soft shade; if you prefer no explicit color choices, remove fillcolor
-    fillcolor: "rgba(255, 0, 0, 0.15)"
+    fillcolor: COLORS.estimatedA
   };
-
 
 
   const showBand = document.getElementById("showAccuracyBand").checked;
   const traces = [];
 
-  // Always show observed
-  traces.push(obsTrace);
-
-  // Optionally add uncertainty band (must come before estTrace)
+  // Optionally add uncertainty band (drawn first so lines sit on top)
   if (showBand) {
     traces.push(estLowerTrace);
     traces.push(estUpperTrace);
   }
 
-  // Always show estimated and sensors
+  traces.push(obsTrace);
   traces.push(estTrace);
   traces.push(interpTrace);
   traces.push(sensorTrace);
 
+  const axisCommon = {
+    gridcolor: COLORS.grid,
+    zeroline: false,
+    linecolor: COLORS.border,
+    tickcolor: COLORS.border,
+    tickfont: { color: COLORS.text2, size: 11 },
+    automargin: true
+  };
 
-
- 
-
-  // Plot
-  Plotly.newPlot("plot", traces, {
-    xaxis: { 
-      title: { text: "VWC (cm³ cm⁻³)" },
-      gridcolor: "#ddd",
+  Plotly.react("plot", traces, {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    font: { family: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif", color: COLORS.text2 },
+    xaxis: Object.assign({}, axisCommon, {
+      title: { text: "VWC (cm³ cm⁻³)", font: { size: 12, color: COLORS.text2 } },
       range: [0.0, 0.5],
-      automargin: true
-    },
-    yaxis: {
-      title: { text: "Depth (cm)" },
-      autorange: "reversed",
+      side: "top"
+    }),
+    yaxis: Object.assign({}, axisCommon, {
+      title: { text: "Depth (cm)", font: { size: 12, color: COLORS.text2 } },
       range: [bottom, 0],
-      gridcolor: "#ddd",
-      automargin: true
+      autorange: false
+    }),
+    legend: {
+      x: 0, y: 0.01, yanchor: "bottom", yref: "container", orientation: "h", traceorder: "normal",
+      font: { color: COLORS.text2, size: 11 }
     },
-    legend: { x: 0.02, y: 1.08, orientation: "h"},
-    margin: { l: 35, r: 5, t: 65, b: 40 }
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: COLORS.surface2,
+      bordercolor: COLORS.border,
+      font: { color: COLORS.text, size: 12 }
+    },
+    margin: { l: 50, r: 16, t: 50, b: 56 }
+  }, {
+    displaylogo: false,
+    responsive: true,
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d"]
   });
 }
 
 
-
 /* ================= MAIN ================= */
-document
-  .getElementById("bottomDepth")
-  .addEventListener("input", function () {
-    updateSensorDepthAvailability();
-    //run();   // optional: recompute immediately
-  });
 
+function kv(rows) {
+  return rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+}
+
+/* Format a fraction as a percentage; signed values get an explicit +/− */
+function pct(v, signed = false) {
+  const txt = Math.abs(v * 100).toFixed(2);
+  const sign = !signed ? "" : (v > 0 ? "+" : (v < 0 ? "−" : ""));
+  return `${sign}${txt}<small>%</small>`;
+}
+
+function clean(s) {
+  return String(s ?? "–").trim();
+}
+
+function renderProfileInfo(p) {
+  document.getElementById("profileInfo").innerHTML = kv([
+    ["Latitude",     Number(p.lat).toFixed(5)],
+    ["Longitude",    Number(p.lon).toFixed(5)],
+    ["Sampling date", clean(p.date)],
+    ["Land cover",   clean(p.land_cover)],
+    ["Soil series",  clean(p.soil_series)],
+    ["Soil texture", clean(p.soil_texture)]
+  ]);
+}
 
 function run() {
+  if (!profiles.length) return;
+
   const bottom = +document.getElementById("bottomDepth").value;
 
   const depths = [...document.querySelectorAll("#sensorOptions input:checked")]
     .map(c => +c.value)
     .filter(d => d <= bottom);
 
+  const p = profiles[profileIndex];
+  document.getElementById("profileSelect").value = profileIndex;
+  renderProfileInfo(p);
+
+  const plotPanel = document.getElementById("plotPanel");
+
   if (depths.length < 1) {
-    alert("Select at least one sensor depth.");
+    plotPanel.classList.add("is-empty");
+    ["reValue", "seValue", "mreValue", "mseValue"].forEach(id =>
+      document.getElementById(id).textContent = "–");
+    const obs = observedProfileStats(p, bottom);
+    document.getElementById("output").innerHTML = kv([
+      ["Observed mean VWC", obs.mean_vwc.toFixed(3)],
+      ["Observed storage", `${obs.storage_mm.toFixed(1)} mm`]
+    ]);
     return;
   }
+  plotPanel.classList.remove("is-empty");
 
   /* Compute metrics for all profiles */
   computeAllProfiles(depths, bottom);
 
-  const mre = meanRelativeError(results);
-
-  const p = profiles[profileIndex];
+  const mre = meanOfResults(results, "rel_error");
+  const mse = meanOfResults(results, "signed_error");
   const r = results[profileIndex];
 
-  /* Profile metadata */
-  document.getElementById("profileInfo").textContent =
-    `Profile: ${p.group} ${p.core}
-Latitude: ${p.lat}
-Longitude: ${p.lon}
-Sampling date: ${p.date}
-Land cover: ${p.land_cover}
-Soil series: ${p.soil_series}
-Soil texture: ${p.soil_texture}`;
+  document.getElementById("reValue").innerHTML  = pct(r.rel_error);
+  document.getElementById("seValue").innerHTML  = pct(r.signed_error, true);
+  document.getElementById("mreValue").innerHTML = pct(mre);
+  document.getElementById("mseValue").innerHTML = pct(mse, true);
 
-  /* Metrics output */
-  document.getElementById("output").textContent =
-    `Observed mean VWC:   ${r.obs_mean_vwc.toFixed(3)}
-Estimated mean VWC:  ${r.est_mean_vwc.toFixed(3)}
-
-Observed storage:    ${r.obs_storage_mm.toFixed(1)} mm
-Estimated storage:   ${r.est_storage_mm.toFixed(1)} mm
-
-Relative error (RE): ${(r.rel_error * 100).toFixed(2)} %
-Mean RE across ${profiles.length} profiles: ${(mre * 100).toFixed(2)} %`;
+  document.getElementById("output").innerHTML = kv([
+    ["Observed mean VWC",  r.obs_mean_vwc.toFixed(3)],
+    ["Estimated mean VWC", r.est_mean_vwc.toFixed(3)],
+    ["Observed storage",   `${r.obs_storage_mm.toFixed(1)} mm`],
+    ["Estimated storage",  `${r.est_storage_mm.toFixed(1)} mm`]
+  ]);
 
   plotProfile(p, depths, bottom);
 }
+
+setupBottomDepthOptions();
+setupSensorOptions();
+updateSensorDepthAvailability();
+
+document.getElementById("bottomDepth").addEventListener("change", () => {
+  updateSensorDepthAvailability();
+  run();
+});
+document.getElementById("sensorOptions").addEventListener("change", run);
+document.getElementById("showAccuracyBand").addEventListener("change", run);
+document.getElementById("profileSelect").addEventListener("change", e => {
+  profileIndex = +e.target.value;
+  run();
+});
 
 
 /* ================= NAVIGATION ================= */
