@@ -204,6 +204,62 @@
   /* ---------- Documentation ---------- */
   .docs { max-width: 80ch; }
   .docs ul { padding-left: 20px; }
+  .cores { margin: 20px 0 24px; }
+  .core-box {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 7px 12px;
+  }
+  .core { position: relative; }
+  .core img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 40 / 1;
+    object-fit: cover;
+    border-radius: 3px;
+    background: var(--surface-2);
+  }
+  /* 5-cm grid (the slicing interval), assuming each strip spans 0–100 cm */
+  .core::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    pointer-events: none;
+    background: repeating-linear-gradient(to right,
+      transparent 0, transparent calc(5% - 1px),
+      rgba(255, 255, 255, 0.28) calc(5% - 1px), rgba(255, 255, 255, 0.28) 5%);
+  }
+  .core-label {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-2);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .core-label:hover { color: var(--estimated); }
+  .core-scale {
+    position: relative;
+    height: 16px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    margin-top: -2px;
+  }
+  .core-scale span {
+    position: absolute;
+    top: 2px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .core-scale span:first-child { transform: none; }
+  .core-scale span:last-child { transform: translateX(-100%); }
+  .cores figcaption { font-size: 0.82rem; color: var(--muted); margin-top: 8px; }
   code.eq {
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -217,6 +273,17 @@
     padding-top: 16px;
     border-top: 1px solid var(--border);
   }
+  .logos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px 40px;
+    margin-top: 8px;
+  }
+  .logos a { display: block; opacity: 0.85; transition: opacity 0.15s; }
+  .logos a:hover { opacity: 1; }
+  .logos img { display: block; height: 30px; width: auto; }
+  .logos img.logo-okstate { height: 40px; }
   footer {
     margin-top: 48px;
     padding-top: 20px;
@@ -298,6 +365,19 @@
   Each reference profile comes from a 1-m soil core cut into 5-cm segments in the field. The tool simulates perfect sensor
   readings at the selected depths and compares the soil moisture profile estimated from those few sensors against the full core.
 </p>
+<figure class="cores">
+  <div class="core-box">
+    <button type="button" class="core-label" onclick="showProfile('KSU', 2)" title="Show Kansas 2 in the tool above">Kansas 2</button><div class="core"><img src="images/cores/core-img-1211.jpg" alt="Soil core Kansas 2 (Ashland Bottoms, Kansas)" loading="lazy"></div>
+    <button type="button" class="core-label" onclick="showProfile('KSU', 5)" title="Show Kansas 5 in the tool above">Kansas 5</button><div class="core"><img src="images/cores/core-img-1217.jpg" alt="Soil core Kansas 5 (Ashland Bottoms, Kansas)" loading="lazy"></div>
+    <button type="button" class="core-label" onclick="showProfile('KSU', 6)" title="Show Kansas 6 in the tool above">Kansas 6</button><div class="core"><img src="images/cores/core-img-1219.jpg" alt="Soil core Kansas 6 (Ashland Bottoms, Kansas)" loading="lazy"></div>
+    <button type="button" class="core-label" onclick="showProfile('KSU', 8)" title="Show Kansas 8 in the tool above">Kansas 8</button><div class="core"><img src="images/cores/core-mentor-riparian.jpg" alt="Soil core Kansas 8 (Mentor, Kansas)" loading="lazy"></div>
+    <button type="button" class="core-label" onclick="showProfile('KSU', 9)" title="Show Kansas 9 in the tool above">Kansas 9</button><div class="core"><img src="images/cores/core-gypsum-1.jpg" alt="Soil core Kansas 9 (Gypsum, Kansas)" loading="lazy"></div>
+    <button type="button" class="core-label" onclick="showProfile('KSU', 10)" title="Show Kansas 10 in the tool above">Kansas 10</button><div class="core"><img src="images/cores/core-gypsum-2.jpg" alt="Soil core Kansas 10 (Gypsum, Kansas)" loading="lazy"></div>
+    <button type="button" class="core-label" onclick="showProfile('KSU', 11)" title="Show Kansas 11 in the tool above">Kansas 11</button><div class="core"><img src="images/cores/core-flickner.jpg" alt="Soil core Kansas 11 (Moundridge, Kansas)" loading="lazy"></div>
+    <span></span><div class="core-scale"><span style="left:0%">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:100%">100 cm</span></div>
+  </div>
+  <figcaption>Examples of the 1-m soil cores used as reference profiles. Cores are shown horizontally with the soil surface on the left and gridlines every 5 cm (the slicing interval). Click a label to show that profile in the tool above.</figcaption>
+</figure>
 <ul>
   <li><strong>Observed</strong> (white line): volumetric water content (VWC) measured in the soil core, interpolated to 1-cm layers and plotted at the middle of each layer (0.5, 1.5, …, 99.5 cm).</li>
   <li><strong>Sensor</strong> (circles): the simulated sensor readings. Each one is the average of the observed 1-cm layers just above and below the sensor depth (e.g., a 5-cm sensor averages the 4–5 cm and 5–6 cm layers).</li>
@@ -363,6 +443,12 @@ This tool is the result of a collaboration between
 <a href="https://www.tamu.edu" target="_blank" rel="noopener">Texas A&amp;M University</a>, and the
 <a href="https://www.mesonet.org" target="_blank" rel="noopener">Oklahoma Mesonet</a>.
 </p>
+<div class="logos">
+  <a href="https://okstate.edu" target="_blank" rel="noopener"><img src="logos/okstate.svg" alt="Oklahoma State University" class="logo-okstate"></a>
+  <a href="https://www.k-state.edu" target="_blank" rel="noopener"><img src="logos/kstate.svg" alt="Kansas State University"></a>
+  <a href="https://www.tamu.edu" target="_blank" rel="noopener"><img src="logos/tamu.svg" alt="Texas A&amp;M University"></a>
+  <a href="https://www.mesonet.org" target="_blank" rel="noopener"><img src="logos/mesonet.svg" alt="Oklahoma Mesonet"></a>
+</div>
 </footer>
 
 
@@ -439,6 +525,15 @@ function setupSensorOptions() {
 
 function profileLabel(p) {
   return `${GROUP_LABELS[p.group] || p.group} ${p.core}`;
+}
+
+/* Select a profile by data group and core number, then scroll to the tool */
+function showProfile(group, core) {
+  const i = profiles.findIndex(p => p.group === group && +p.core === core);
+  if (i < 0) return;
+  profileIndex = i;
+  run();
+  document.querySelector(".controls-row").scrollIntoView({ behavior: "smooth" });
 }
 
 function setupProfileSelect() {
